@@ -12,6 +12,7 @@ import pyaudio
 import numpy as np
 import scipy.signal
 import matplotlib.pyplot as plt
+import audioop
 
 
 class SpeakerTestEngine():
@@ -107,13 +108,17 @@ class SpeakerTestEngine():
         # Close the open _channel(s)_...
         self.stream.close()
 
-        print len(input_data[0]), len(input_data[1])
+        print(len(input_data[0]))
 
         input_data = np.fromstring(b''.join(input_data), dtype=np.int16)
         input_data = input_data[:len(data)]
 
         # two channels
         input_data = np.reshape(input_data, (int(len(input_data) / 2), 2))
+
+        input_data[:, 0] -= np.mean(input_data[:, 0]).astype(np.int16)
+        input_data[:, 1] -= np.mean(input_data[:, 1]).astype(np.int16)
+
         input_data_fft0 = np.fft.rfft(input_data[:, 0])
         input_data_fft1 = np.fft.rfft(input_data[:, 1])
 
@@ -147,13 +152,25 @@ impulse_response = test_engine.run(f1=f1, f2=f2, fs=fs, duration=duration)
 t1 = np.argmax(np.abs(impulse_response[0]))
 
 harmonic = []
-for i in range(2, 10):
-    x = t1 - duration * fs * np.log(i) / np.log(f2 / f1)
+for i in range(2, 16):
+    x = int(t1 - duration * fs * np.log(i) / np.log(f2 / f1))
+    if t1 < x:
+        break
     harmonic.append(x)
 
 
-fr = 10 * np.log10(np.abs(np.fft.rfft(impulse_response[0][t1 - 300:t1 + 600])))
-freq = np.fft.rfftfreq(900, d=1. / fs)
+# TODO: include harmonic or not
+fr = thdn = impulse_response[0][t1-300:t1 + 600]
+FR = 10 * np.log10(np.abs(np.fft.rfft(fr)))
+freq = np.fft.rfftfreq(len(fr), d=1./fs)
+
+# Total harmonic distortion + Noise
+thdn = impulse_response[0][t1-harmonic[-1]:t1-300]
+THDN = 10 * np.log10(np.abs(np.fft.rfft(thdn)))
+freq2 = np.fft.rfftfreq(len(thdn), d=1./fs)
+
+thd_rms = 10 * np.log10(np.sqrt(thdn.dot(thdn)) / np.sqrt(fr.dot(fr)))
+print thd_rms
 
 plt.figure()
 plt.subplot(2, 1, 1)
@@ -171,9 +188,19 @@ plt.title('ch1')
 
 plt.figure()
 plt.grid()
-plt.semilogx(freq, fr, label='Frequency Response')
+plt.semilogx(freq, FR, label='Frequency Response')
+plt.semilogx(freq2, THDN, label='THD+N')
+
 plt.title('Frequency Response')
 plt.xlabel('Frequency [Hz]')
 plt.ylabel('Amplitude [dB]')
 plt.legend()
+
+# plt.figure()
+# plt.grid()
+# plt.semilogx(freq2, THDN, label='THD+N')
+# plt.title('THD+N')
+# plt.xlabel('Frequency [Hz]')
+# plt.ylabel('Amplitude [dB]')
+
 plt.show()
