@@ -8,6 +8,7 @@ else:
     import queue
 
 import numpy as np
+import audioop
 
 from voice_engine.source import Source
 from voice_engine.element import Element
@@ -45,6 +46,12 @@ class THD(Element):
     def run(self):
         while not self.done:
             data = self.queue.get()
+
+            rms = audioop.rms(data, 2)
+            rms_db = 20 * np.log10(rms)
+
+            pp = 20 * np.log10(audioop.avgpp(data, 2))
+
             x = np.fromstring(data, dtype='int16')
 
             nfft = x.shape[0]
@@ -64,19 +71,28 @@ class THD(Element):
                 harmonic += base
 
             thd = Fh / F1
-            print(thd)
+            print('RMS: {} dB, THD: {}, Peak: {} dB'.format(rms_db, thd, pp))
 
             super(THD, self).put(data)
 
 
 def main():
     import time
+    import datetime
     from voice_engine.source import Source
+    from voice_engine.channel_picker import ChannelPicker
+    from voice_engine.file_sink import FileSink
 
-    src = Source(rate=48000, frames_size=48000)
+    src = Source(channels=2, rate=48000, frames_size=48000)
+    chx = ChannelPicker(channels=src.channels, pick=0)
     thd = THD(1000, src.rate)
 
-    src.pipeline(thd)
+    filename = '2.94dB1KHz.' + datetime.datetime.now().strftime("%Y%m%d.%H:%M:%S") + '.wav'
+
+    sink = FileSink(filename, channels=src.channels, rate=src.rate)
+
+    src.link(sink)
+    src.pipeline(chx, thd)
 
     src.pipeline_start()
 
