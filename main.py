@@ -14,7 +14,7 @@ import numpy as np
 from voice_engine.source import Source
 from thd import THD
 
-data = []
+data = None
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -39,10 +39,9 @@ class MainWindow(QMainWindow):
         self.ff.setPos(100, 0)
 
 
-        self.point = pg.CurvePoint(self.plot)
-        self.plotwidget.addItem(self.point)
-        arrow = pg.ArrowItem(pos=(100, 0), angle=-45)
-        arrow.setParentItem(self.point)
+        self.arrow = pg.ArrowItem(pos=(100, 0), angle=-45)
+        self.plotwidget.addItem(self.arrow)
+        
 
         plotitem = self.plotwidget.getPlotItem()
         # plotitem.hideAxis('left')
@@ -70,11 +69,11 @@ class MainWindow(QMainWindow):
     def update(self):
         global data
 
-        if not self.freeze:
+        if not self.freeze and data is not None:
             self.plot.setData(data)
-            self.point.setPos(100.0 / 2400)
-            self.ff.setPos(100, data[100])
-            self.ff.setText(data[100])
+            self.arrow.setPos(100, data[100])
+            self.ff.setPos(100, 0)
+            self.ff.setText(str(data[100]))
         
     def keyPressEvent(self, event):
         key = event.key()

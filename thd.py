@@ -52,18 +52,18 @@ class THD(Element):
 
             X = np.fft.rfft(x)
 
-            self.on_data(np.abs(X))
+            self.on_data(20 * np.log10(np.abs(X)))
 
             base = self.ff / resolution
             F1 = np.abs(X[base])
             Fh = 0
 
             harmonic = 2 * base
-            while harmonic <= (nfft / 2):
+            while harmonic < (nfft / 2):
                 Fh += np.abs(X[harmonic])
                 harmonic += base
 
-            thd = 10 * np.log10(Fh / F1)
+            thd = Fh / F1
             print(thd)
 
             super(THD, self).put(data)
