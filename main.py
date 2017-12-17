@@ -6,12 +6,15 @@ Plot realtime power comsumption of BLE SMURFS
 """
 
 import sys
+import datetime
 from PySide.QtCore import QThread, Signal, Slot, Qt
 from PySide.QtGui import QApplication, QMainWindow, QWidget, QHBoxLayout, QMessageBox, QKeyEvent
 import pyqtgraph as pg
 import numpy as np
 
 from voice_engine.source import Source
+from voice_engine.channel_picker import ChannelPicker
+from voice_engine.file_sink import FileSink
 from thd import THD
 
 data = None
@@ -53,7 +56,12 @@ class MainWindow(QMainWindow):
         self.timer.start(50)
 
         self.src = Source(rate=48000, frames_size=4800)
+        chx = ChannelPicker(channels=self.src.channels, pick=0)
         thd = THD(1000, self.src.rate)
+
+        filename = '2.94dB1KHz.' + datetime.datetime.now().strftime("%Y%m%d.%H:%M:%S") + '.wav'
+
+        sink = FileSink(filename, channels=self.src.channels, rate=self.src.rate)
 
         def on_data(d):
             global data
@@ -62,6 +70,7 @@ class MainWindow(QMainWindow):
 
         thd.on_data = on_data
 
+        self.src.link(sink)
         self.src.pipeline(thd)
 
         self.src.pipeline_start()
